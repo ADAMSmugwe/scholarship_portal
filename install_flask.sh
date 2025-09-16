@@ -1,0 +1,1 @@
+pip install Flask Flask-SQLAlchemy Flask-JWT-Extended Flask-Login

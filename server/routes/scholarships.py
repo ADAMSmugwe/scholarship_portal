@@ -7,7 +7,7 @@ from sqlalchemy.sql import select
 
 scholarships_bp = Blueprint('scholarships', __name__)
 
-@scholarships_bp.route('/', methods=['GET'])
+@scholarships_bp.route('/', methods=['GET'], strict_slashes=False)
 def get_scholarships():
     try:
         scholarships = Scholarship.query.order_by(Scholarship.deadline).all()

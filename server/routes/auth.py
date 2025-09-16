@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required
 from extensions import db
 from models import User
 
@@ -12,7 +12,7 @@ def register():
     if not data or not data.get('name') or not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Missing required fields'}), 400
 
-    if User.query.filter_by(email=data['email']).first():
+    if db.session.query(User).filter_by(email=data['email']).first():
         return jsonify({'error': 'User already exists'}), 400
     
     user = User(
@@ -31,15 +31,16 @@ def login():
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Email and password are required'}), 400
 
-    user = User.query.filter_by(email=data['email']).first()
+    user = db.session.query(User).filter_by(email=data['email']).first()
     if user and user.check_password(data['password']):
-        access_token = create_access_token(identity=user.id)
-        return jsonify(access_token=access_token)
+        # Don't use login_user for JWT - it's not needed
+        access_token = create_access_token(identity=str(user.id))
+        return jsonify(access_token=access_token, message='Logged in successfully')
         
     return jsonify({'error': 'Invalid credentials'}), 401
 
-@auth_bp.route('/logout')
-@login_required
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
-    logout_user()
+    # For JWT, logout is handled client-side by removing the token
+    # No server-side session to destroy
     return jsonify({'message': 'Logged out successfully'})

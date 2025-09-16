@@ -1,0 +1,1 @@
+pip install Flask-Migrate Flask-CORS Flask-Bcrypt
