@@ -1,0 +1,14 @@
+# Virtual Environment
+venv/
+.venv/
+__pycache__/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
