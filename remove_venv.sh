@@ -1,1 +1,1 @@
-rm -rf server/venv
+rm -rf .venv
