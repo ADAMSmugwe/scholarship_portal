@@ -1,23 +1,67 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, redirect
 import os
-from config import Config
-from extensions import db, migrate, cors, bcrypt, login_manager, jwt
+from config import Config, DevelopmentConfig, ProductionConfig
+from extensions import db, migrate, cors, bcrypt, login_manager, jwt, mail, cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import text
 
 app = Flask(__name__)
-app.config.from_object(Config)
+
+# Use appropriate config based on environment
+if os.environ.get('FLASK_ENV') == 'production':
+    app.config.from_object(ProductionConfig)
+elif os.environ.get('FLASK_ENV') == 'development' or app.config.get('DEBUG', True):
+    app.config.from_object(DevelopmentConfig)
+else:
+    app.config.from_object(Config)
+
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
+# Make limiter available to blueprints
+app.limiter = limiter
 
 # Initialize extensions
 db.init_app(app)
 migrate.init_app(app, db)
+cache.init_app(app)
 cors.init_app(app, 
-              origins=["http://localhost:3000"], 
+              origins=app.config['CORS_ORIGINS'], 
               supports_credentials=True,
               methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
               allow_headers=["Content-Type", "Authorization"])
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # Prevent MIME type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Enable XSS protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Referrer policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    # Content Security Policy (basic)
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    return response
+
+# HTTPS redirection middleware
+@app.before_request
+def https_redirect():
+    if app.config.get('FORCE_HTTPS') and request.headers.get('X-Forwarded-Proto') == 'http':
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
 bcrypt.init_app(app)
 login_manager.init_app(app)
 jwt.init_app(app)
+mail.init_app(app)
 
 # JWT user loader
 @jwt.user_lookup_loader
@@ -41,6 +85,12 @@ app.register_blueprint(applications_bp, url_prefix='/api/applications')
 app.register_blueprint(profile_bp, url_prefix='/api/profile')
 app.register_blueprint(search_bp, url_prefix='/api/search')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+
+# Apply specific rate limits to endpoints
+with app.app_context():
+    limiter.limit("5/hour", methods=["POST"])(app.view_functions['auth.register'])
+    limiter.limit("10/hour", methods=["POST"])(app.view_functions['auth.login'])
+    limiter.limit("3/hour", methods=["POST"])(app.view_functions['applications.submit_application'])
 
 @app.route('/')
 def home():

@@ -76,10 +76,12 @@ def search_scholarships():
         'pagination': {
             'page': scholarships.page,
             'per_page': scholarships.per_page,
-            'total': scholarships.total,
-            'pages': scholarships.pages,
+            'total_scholarships': scholarships.total,
+            'total_pages': scholarships.pages,
             'has_next': scholarships.has_next,
-            'has_prev': scholarships.has_prev
+            'has_prev': scholarships.has_prev,
+            'next_page': scholarships.page + 1 if scholarships.has_next else None,
+            'prev_page': scholarships.page - 1 if scholarships.has_prev else None
         }
     })
 

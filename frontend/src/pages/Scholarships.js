@@ -55,7 +55,7 @@ const Scholarships = () => {
 
       const response = await axios.get(`/api/search/scholarships?${params}`);
       setScholarships(response.data.scholarships);
-      setTotalPages(response.data.pagination.pages);
+      setTotalPages(response.data.pagination.total_pages);
       setLoading(false);
     } catch (error) {
       setError('Failed to load scholarships');
@@ -182,7 +182,18 @@ const Scholarships = () => {
               <Grid size={{ xs: 12, md: 6, lg: 4 }} key={scholarship.id}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography variant="h6" component="h2" gutterBottom>
+                    <Typography 
+                      variant="h6" 
+                      component={Link} 
+                      to={`/scholarships/${scholarship.id}`}
+                      gutterBottom
+                      sx={{ 
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        '&:hover': { color: 'primary.main' }
+                      }}
+                    >
                       {scholarship.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" paragraph>

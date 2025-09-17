@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import db
+from extensions import db, cache
 from models import Application, Scholarship, User
 
 applications_bp = Blueprint('applications', __name__)
@@ -19,22 +19,61 @@ def submit_application():
     )
     db.session.add(application)
     db.session.commit()
+    # Clear user's application cache after submission
+    cache.delete(f'user_applications_{current_user.id}')
     return jsonify({'message': 'Application submitted successfully'}), 201
 
 @applications_bp.route('/my-applications', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_user_applications():
-    user_id = get_jwt_identity()
-    applications = db.session.query(Application).filter_by(student_id=int(user_id)).all()
-    return jsonify([{
-        'id': app.id,
-        'scholarship_id': app.scholarship_id,
-        'created_at': app.created_at.isoformat(),
-        'id': app.id,
-        'scholarship_id': app.scholarship_id,
-        'created_at': app.created_at.isoformat(),
-        'status': app.status
-    } for app in applications])
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 50:
+            per_page = 10
+        
+        # Get total count for pagination metadata
+        total_applications = db.session.query(Application).filter_by(student_id=int(user_id)).count()
+        
+        # Apply pagination to query
+        applications_query = db.session.query(Application).filter_by(student_id=int(user_id)).order_by(Application.submission_date.desc())
+        applications = applications_query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Calculate pagination metadata
+        total_pages = (total_applications + per_page - 1) // per_page
+        
+        result = {
+            'applications': [{
+                'id': app.id,
+                'scholarship_id': app.scholarship_id,
+                'status': app.status,
+                'submission_date': app.submission_date.isoformat() if app.submission_date else None,
+                'reviewed_at': app.reviewed_at.isoformat() if app.reviewed_at else None,
+                'reviewed_by': app.reviewed_by,
+                'notes': app.notes
+            } for app in applications],
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_applications': total_applications,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_prev': page > 1,
+                'next_page': page + 1 if page < total_pages else None,
+                'prev_page': page - 1 if page > 1 else None
+            }
+        }
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch applications'}), 500
 
 @applications_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()

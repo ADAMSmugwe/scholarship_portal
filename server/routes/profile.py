@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import db
+from extensions import db, cache
 from models import User
 from datetime import datetime
 
@@ -8,6 +8,7 @@ profile_bp = Blueprint('profile', __name__)
 
 @profile_bp.route('/', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=120, key_prefix=lambda: f'user_profile_{get_jwt_identity()}')  # Cache for 2 minutes
 def get_profile():
     """Get current user's profile"""
     user_id = get_jwt_identity()
@@ -41,6 +42,8 @@ def update_profile():
 
     try:
         db.session.commit()
+        # Clear user profile cache after update
+        cache.delete(f'user_profile_{user_id}')
         return jsonify({'message': 'Profile updated successfully', 'user': user.to_dict()})
     except Exception as e:
         db.session.rollback()

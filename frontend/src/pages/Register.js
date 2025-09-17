@@ -26,6 +26,7 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -62,7 +64,36 @@ const Register = () => {
     );
 
     if (result.success) {
-      navigate('/login');
+      if (result.verificationLink) {
+        // Development mode - show verification link
+        setSuccessMessage(
+          <Box>
+            <Typography variant="body1" gutterBottom>
+              Registration successful! Click the link below to verify your account:
+            </Typography>
+            <MuiLink
+              href={result.verificationLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ wordBreak: 'break-all' }}
+            >
+              {result.verificationLink}
+            </MuiLink>
+          </Box>
+        );
+      } else {
+        // Production mode - standard message
+        setSuccessMessage('Registration successful! Please check your email to verify your account before logging in.');
+      }
+      
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        role: 'student'
+      });
     } else {
       setError(result.error);
     }
@@ -88,6 +119,12 @@ const Register = () => {
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
+            </Alert>
+          )}
+
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {successMessage}
             </Alert>
           )}
 

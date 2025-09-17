@@ -17,7 +17,9 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
 
   // Configure axios defaults
-  axios.defaults.baseURL = 'http://127.0.0.1:5002';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const protocol = isProduction ? 'https' : 'http';
+  axios.defaults.baseURL = `${protocol}://127.0.0.1:5002`;
   if (token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
@@ -68,8 +70,12 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password, role = 'student') => {
     try {
-      await axios.post('/api/auth/register', { name, email, password, role });
-      return { success: true };
+      const response = await axios.post('/api/auth/register', { name, email, password, role });
+      return {
+        success: true,
+        message: response.data.message,
+        verificationLink: response.data.verification_link
+      };
     } catch (error) {
       return {
         success: false,
