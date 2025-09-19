@@ -3,6 +3,12 @@ from datetime import timedelta
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-please-change'
+    
+    # CORS configuration
+    CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization']
+    CORS_EXPOSE_HEADERS = ['Content-Type', 'Authorization']
+    CORS_SUPPORTS_CREDENTIALS = True
+    
     # PostgreSQL database URI
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://macbook:@localhost:5432/scholarship_db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False

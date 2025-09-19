@@ -1,33 +1,63 @@
-from flask import Flask, jsonify, request, redirect
+from flask import Flask
 import os
-from config import Config, DevelopmentConfig, ProductionConfig
-from extensions import db, migrate, cors, bcrypt, login_manager, jwt, mail, cache
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from sqlalchemy import text
+from flask_mail import Mail
+from flask_cors import CORS
 
+# Initialize Flask app
 app = Flask(__name__)
 
-# Use appropriate config based on environment
-if os.environ.get('FLASK_ENV') == 'production':
-    app.config.from_object(ProductionConfig)
-elif os.environ.get('FLASK_ENV') == 'development' or app.config.get('DEBUG', True):
-    app.config.from_object(DevelopmentConfig)
-else:
-    app.config.from_object(Config)
+# Enable CORS
+cors = CORS(app)
 
-# Initialize rate limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
+# Configure mail settings
+app.config.update(
+    MAIL_SERVER='smtp.gmail.com',
+    MAIL_PORT=587,
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME='your-email@gmail.com',  # Replace with your Gmail email
+    MAIL_PASSWORD='your-app-password',      # Replace with your Gmail app password
+    MAIL_DEFAULT_SENDER='your-email@gmail.com'
 )
 
-# Make limiter available to blueprints
-app.limiter = limiter
+# Initialize Flask-Mail
+mail = Mail(app)
+
+@app.route('/test-email', methods=['GET'])
+def test_email():
+    try:
+        msg = mail.send_message(
+            subject='Test Email',
+            recipients=['test@example.com'],
+            body='This is a test email to verify that the email configuration works.'
+        )
+        return {'success': True, 'message': 'Email sent successfully'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}, 500
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5002)
 
 # Initialize extensions
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+
+# Configure CORS
+cors.init_app(app, 
+    resources={r"/*": {
+        "origins": ["http://localhost:3000", "http://localhost:3001"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Authorization"]
+    }},
+    send_wildcard=False)
 db.init_app(app)
 migrate.init_app(app, db)
 cache.init_app(app)

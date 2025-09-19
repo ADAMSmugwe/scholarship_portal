@@ -46,6 +46,24 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  const requestPasswordReset = async (email) => {
+    try {
+      await axios.post('/api/auth/request-reset-password', { email });
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    try {
+      await axios.post('/api/auth/reset-password', { token, new_password: newPassword });
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const login = async (email, password) => {
     try {
       const response = await axios.post('/api/auth/login', { email, password });
@@ -70,16 +88,41 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password, role = 'student') => {
     try {
-      const response = await axios.post('/api/auth/register', { name, email, password, role });
+      // Create a dedicated axios instance for registration
+      const instance = axios.create({
+        baseURL: process.env.NODE_ENV === 'production' ? 'https://api.yourserver.com' : 'http://localhost:5003',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('Attempting registration with:', { name, email, role });
+      
+      const response = await instance.post('/api/auth/register', { 
+        name, 
+        email, 
+        password, 
+        role 
+      });
+
+      console.log('Registration response:', response.data);
+
       return {
         success: true,
         message: response.data.message,
         verificationLink: response.data.verification_link
       };
     } catch (error) {
+      console.error('Registration error:', {
+        error: error,
+        response: error.response,
+        data: error.response?.data
+      });
+
       return {
         success: false,
-        error: error.response?.data?.error || 'Registration failed'
+        error: error.response?.data?.error || 'Registration failed. Please try again.'
       };
     }
   };
@@ -111,6 +154,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
+    requestPasswordReset,
+    resetPassword,
     user,
     token,
     loading,

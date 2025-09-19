@@ -1,12 +1,34 @@
 import React from 'react';
-import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
+import { 
+  BrowserRouter, 
+  MemoryRouter, 
+  Routes, 
+  Route,
+  createRoutesFromElements,
+  createBrowserRouter,
+  RouterProvider
+} from 'react-router-dom';
 
 const Router = process.env.NODE_ENV === 'test' ? MemoryRouter : BrowserRouter;
+
+// Future flags for React Router v7 compatibility
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route
+      path="/*"
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    />
+  )
+);
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import ForgotPassword from './pages/ForgotPassword';
 import Scholarships from './pages/Scholarships';
 import ScholarshipDetail from './pages/ScholarshipDetail';
 import Applications from './pages/Applications';
@@ -44,6 +66,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email/:token" element={<EmailVerification />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/applications" element={
                 <PrivateRoute>
                   <Applications />

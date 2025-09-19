@@ -20,18 +20,52 @@ const EmailVerification = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        const response = await axios.get(`/api/auth/verify-email/${token}`);
+        if (!token) {
+          setStatus('error');
+          setMessage('No verification token provided');
+          return;
+        }
+
+        console.log('Attempting to verify token:', token);
+        
+        // Configure axios for this request
+        const instance = axios.create({
+          baseURL: 'http://localhost:5003',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+        
+        const response = await instance.get(`/api/auth/verify-email/${token}`);
+        console.log('Verification response:', response);
+        
         setStatus('success');
         setMessage(response.data.message);
       } catch (error) {
+        console.error('Verification error details:', {
+          error: error,
+          response: error.response,
+          data: error.response?.data,
+          status: error.response?.status
+        });
+        
         setStatus('error');
-        setMessage(error.response?.data?.error || 'Verification failed');
+        if (error.response?.data?.error) {
+          setMessage(error.response.data.error);
+        } else if (error.response?.status === 400) {
+          setMessage('Invalid or expired verification token');
+        } else if (error.response?.status === 404) {
+          setMessage('Verification endpoint not found');
+        } else if (error.message === 'Network Error') {
+          setMessage('Cannot connect to server. Please try again later.');
+        } else {
+          setMessage('An unexpected error occurred during verification');
+        }
       }
     };
 
-    if (token) {
-      verifyEmail();
-    }
+    verifyEmail();
   }, [token]);
 
   const handleContinue = () => {

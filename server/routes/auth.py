@@ -1,4 +1,24 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, make_response
+from flask_login import login_user, logout_user, login_required
+from flask_jwt_extended import create_access_token, jwt_required
+from extensions import db, mail
+from flask_mail import Message
+from models import User
+from datetime import datetime, timedelta
+import secrets
+
+auth_bp = Blueprint('auth', __name__)
+
+# Add OPTIONS request handling for all routes
+@auth_bp.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 from flask_login import login_user, logout_user, login_required
 from flask_jwt_extended import create_access_token, jwt_required
 from extensions import db, mail
@@ -103,7 +123,7 @@ def forgot_password():
                   sender='noreply@scholarshipportal.com',
                   recipients=[user.email])
     msg.body = f'''To reset your password, visit the following link:
-{request.host_url}reset-password/{token}
+http://localhost:3000/reset-password/{token}
 
 If you did not make this request, simply ignore this email.
 '''
@@ -111,8 +131,21 @@ If you did not make this request, simply ignore this email.
         mail.send(msg)
         return jsonify({'message': 'If the email exists, a reset link has been sent'}), 200
     except Exception as e:
-        print(f"Email sending failed: {e}")
-        return jsonify({'error': 'Failed to send reset email'}), 500
+        print(f"Email sending failed: {str(e)}")
+        # In development mode, print the reset link to console
+        if current_app.config.get('DEBUG', False):
+            print(f"\n{'='*60}")
+            print(f"📧 DEVELOPMENT MODE - PASSWORD RESET LINK:")
+            print(f"🔗 http://localhost:3000/reset-password/{token}")
+            print(f"{'='*60}\n")
+            return jsonify({
+                'message': 'If the email exists, a reset link has been generated. Check the console for the link.',
+                'reset_link': f"http://localhost:3000/reset-password/{token}"
+            }), 200
+        else:
+            # Log the error but don't expose it in production
+            current_app.logger.error(f"Failed to send reset email: {str(e)}")
+            return jsonify({'error': 'Failed to send reset email'}), 500
 
 @auth_bp.route('/reset-password/<token>', methods=['POST'])
 def reset_password(token):
