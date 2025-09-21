@@ -31,6 +31,7 @@ import Home from './pages/Home';
 import ForgotPassword from './pages/ForgotPassword';
 import Scholarships from './pages/Scholarships';
 import ScholarshipDetail from './pages/ScholarshipDetail';
+import CreateScholarship from './pages/CreateScholarship';
 import Applications from './pages/Applications';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
@@ -62,6 +63,11 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/scholarships" element={<Scholarships />} />
+              <Route path="/scholarships/create" element={
+                <AdminRoute>
+                  <CreateScholarship />
+                </AdminRoute>
+              } />
               <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />

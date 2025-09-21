@@ -1,0 +1,30 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Local development settings
+.env
+.flaskenv
+
+# Uploaded files
+uploads/
+uploads/*
+!uploads/.gitkeep
+
+# Instance folder
+instance/
+instance/*
+!instance/.gitkeep
+
+# Database files
+*.sqlite
+*.db
+
+# Log files
+*.log

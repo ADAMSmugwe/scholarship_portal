@@ -11,14 +11,18 @@ import {
   CircularProgress,
   Grid,
   Avatar,
-  Divider
+  Divider,
+  Tabs,
+  Tab
 } from '@mui/material';
-import { Person, Email, School } from '@mui/icons-material';
+import { Person, AccountBox, Assignment } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import ProfileForm from '../components/ProfileForm';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
+  const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -129,9 +133,26 @@ const Profile = () => {
         <Grid size={{ xs: 12, md: 8 }}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Update Profile Information
-              </Typography>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs
+                  value={activeTab}
+                  onChange={(event, newValue) => setActiveTab(newValue)}
+                  aria-label="profile tabs"
+                >
+                  <Tab 
+                    label="Basic Information" 
+                    value="basic" 
+                    icon={<AccountBox />} 
+                    iconPosition="start"
+                  />
+                  <Tab 
+                    label="Extended Profile" 
+                    value="extended" 
+                    icon={<Assignment />} 
+                    iconPosition="start"
+                  />
+                </Tabs>
+              </Box>
 
               {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -145,80 +166,84 @@ const Profile = () => {
                 </Alert>
               )}
 
-              <Box component="form" onSubmit={handleSubmit}>
-                <Grid container spacing={2}>
-                  <Grid size={12}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                    />
+              {activeTab === 'basic' ? (
+                <Box component="form" onSubmit={handleSubmit}>
+                  <Grid container spacing={2}>
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Full Name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Grid>
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={12}>
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                    />
-                  </Grid>
-                </Grid>
 
-                <Divider sx={{ my: 3 }} />
+                  <Divider sx={{ my: 3 }} />
 
-                <Typography variant="h6" gutterBottom>
-                  Change Password (Optional)
-                </Typography>
+                  <Typography variant="h6" gutterBottom>
+                    Change Password (Optional)
+                  </Typography>
 
-                <Grid container spacing={2}>
-                  <Grid size={12}>
-                    <TextField
-                      fullWidth
-                      label="Current Password"
-                      name="current_password"
-                      type="password"
-                      value={formData.current_password}
-                      onChange={handleChange}
-                    />
+                  <Grid container spacing={2}>
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Current Password"
+                        name="current_password"
+                        type="password"
+                        value={formData.current_password}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="New Password"
+                        name="new_password"
+                        type="password"
+                        value={formData.new_password}
+                        onChange={handleChange}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Confirm New Password"
+                        name="confirm_password"
+                        type="password"
+                        value={formData.confirm_password}
+                        onChange={handleChange}
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="New Password"
-                      name="new_password"
-                      type="password"
-                      value={formData.new_password}
-                      onChange={handleChange}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Confirm New Password"
-                      name="confirm_password"
-                      type="password"
-                      value={formData.confirm_password}
-                      onChange={handleChange}
-                    />
-                  </Grid>
-                </Grid>
 
-                <Box sx={{ mt: 3, textAlign: 'right' }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={loading}
-                  >
-                    {loading ? 'Updating...' : 'Update Profile'}
-                  </Button>
+                  <Box sx={{ mt: 3, textAlign: 'right' }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={loading}
+                    >
+                      {loading ? 'Updating...' : 'Update Profile'}
+                    </Button>
+                  </Box>
                 </Box>
-              </Box>
+              ) : (
+                <ProfileForm />
+              )}
             </CardContent>
           </Card>
         </Grid>

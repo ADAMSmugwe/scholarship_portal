@@ -12,11 +12,11 @@ from pathlib import Path
 server_dir = Path(__file__).parent
 sys.path.insert(0, str(server_dir))
 
-from app import app
+from app import create_app
 from config import ProductionConfig
 
-# Configure for production
-app.config.from_object(ProductionConfig)
+# Create app with production config
+app = create_app(ProductionConfig)
 
 # SSL context for HTTPS (if certificates are available)
 ssl_context = None

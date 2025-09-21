@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container,
@@ -20,10 +20,12 @@ import {
   Select,
   MenuItem
 } from '@mui/material';
-import { Search, FilterList } from '@mui/icons-material';
+import { Search, FilterList, Add } from '@mui/icons-material';
+import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 
 const Scholarships = () => {
+  const { user } = useContext(AuthContext);
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -102,9 +104,22 @@ const Scholarships = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Scholarships
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" component="h1">
+          Scholarships
+        </Typography>
+        {user?.role === 'admin' && (
+          <Button
+            variant="contained"
+            color="primary"
+            component={Link}
+            to="/scholarships/create"
+            startIcon={<Add />}
+          >
+            Create Scholarship
+          </Button>
+        )}
+      </Box>
 
       {/* Search and Filters */}
       <Box sx={{ mb: 4 }}>

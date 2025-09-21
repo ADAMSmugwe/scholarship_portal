@@ -4,10 +4,18 @@ from datetime import timedelta
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-please-change'
     
+    # Database configuration
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'postgresql://macbook:@localhost:5432/scholarship_db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
     # CORS configuration
     CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization']
     CORS_EXPOSE_HEADERS = ['Content-Type', 'Authorization']
     CORS_SUPPORTS_CREDENTIALS = True
+
+    # File upload configuration
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     
     # PostgreSQL database URI
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://macbook:@localhost:5432/scholarship_db'
