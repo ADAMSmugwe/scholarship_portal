@@ -1,8 +1,10 @@
 import React from 'react';
 import { render, screen, waitFor } from '../test-utils';
-import userEvent from '../test-utils';
+import userEvent from '@testing-library/user-event';
 import { mockedAxios } from '../test-utils';
 import App from '../App';
+
+const user = userEvent.setup();
 
 // Mock axios
 jest.mock('axios', () => ({
@@ -22,13 +24,60 @@ jest.mock('axios', () => ({
 }));
 
 describe('Profile Management and Admin Functions Integration Tests', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     localStorage.clear();
+
+    // Set up authentication
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'student'
+    };
+    localStorage.setItem('token', 'mock-jwt-token');
+    localStorage.setItem('user', JSON.stringify(mockUser));
+
+    // Set up common mock responses
+    mockedAxios.get.mockImplementation((url) => {
+      switch(url) {
+        case '/api/auth/check':
+          return Promise.resolve({ data: mockUser });
+        case '/api/profile/':
+          return Promise.resolve({
+            data: mockUser
+          });
+        case '/api/profile/extended':
+          return Promise.resolve({
+            data: {
+              date_of_birth: '1995-01-01',
+              phone_number: '123-456-7890',
+              address: '123 Test St',
+              city: 'Test City',
+              state: 'Test State',
+              country: 'Test Country',
+              postal_code: '12345',
+              current_school: 'Test University',
+              major: 'Computer Science',
+              gpa: 3.8,
+              graduation_year: 2026,
+              education_level: 'undergraduate',
+              bio: 'Test bio',
+              achievements: 'Test achievements',
+              extracurricular_activities: 'Test activities',
+              completion_percentage: 85
+            }
+          });
+        default:
+          return Promise.reject(new Error('Unknown URL'));
+      }
+    });
+    localStorage.setItem('token', 'mock-jwt-token');
   });
 
   test('user can view and update their profile', async () => {
-    
+    // Set up auth token in axios defaults
+    mockedAxios.defaults.headers.common['Authorization'] = 'Bearer mock-jwt-token';
 
     // Mock authenticated user
     mockedAxios.get.mockImplementation((url) => {
@@ -68,26 +117,28 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
     });
 
     // Navigate to profile
-    const profileLink = screen.getByRole('link', { name: /profile/i });
-    await user.click(profileLink);
+    const profileLink = await screen.findByRole('link', { name: /profile/i });
+    await userEvent.click(profileLink);
 
-    // Verify profile data is displayed
-    expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('test@example.com')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('A student interested in scholarships')).toBeInTheDocument();
+    // Wait for profile data to be displayed
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('test@example.com')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('A student interested in scholarships')).toBeInTheDocument();
+    });
 
     // Update profile
-    const nameInput = screen.getByLabelText(/name/i);
-    const bioInput = screen.getByLabelText(/bio/i);
-    const phoneInput = screen.getByLabelText(/phone/i);
-    const updateButton = screen.getByRole('button', { name: /update profile/i });
+    const nameInput = await screen.findByLabelText(/name/i);
+    const bioInput = await screen.findByLabelText(/bio/i);
+    const phoneInput = await screen.findByLabelText(/phone/i);
+    const updateButton = await screen.findByRole('button', { name: /update/i });
 
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Updated User');
-    await user.clear(bioInput);
-    await user.type(bioInput, 'Updated bio');
-    await user.clear(phoneInput);
-    await user.type(phoneInput, '098-765-4321');
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Updated User');
+    await userEvent.clear(bioInput);
+    await userEvent.type(bioInput, 'Updated bio');
+    await userEvent.clear(phoneInput);
+    await userEvent.type(phoneInput, '098-765-4321');
 
     await user.click(updateButton);
 
@@ -163,8 +214,6 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
   });
 
   test('admin can view all applications', async () => {
-    
-
     // Mock admin user and applications
     mockedAxios.get.mockImplementation((url) => {
       if (url === '/api/profile/') {
@@ -218,8 +267,6 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
   });
 
   test('admin can update application status', async () => {
-    
-
     // Mock admin user and applications
     mockedAxios.get.mockImplementation((url) => {
       if (url === '/api/profile/') {
@@ -432,9 +479,9 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
       expect(mockedAxios.get).toHaveBeenCalledWith('/api/profile/');
     });
 
-    // Navigate to profile
-    const profileLink = screen.getByRole('link', { name: /profile/i });
-    await user.click(profileLink);
+    // Wait for profile link to appear in navigation
+    const profileLink = await screen.findByRole('link', { name: /profile/i });
+    await userEvent.click(profileLink);
 
     // Update profile
     const nameInput = screen.getByLabelText(/name/i);
@@ -447,6 +494,136 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
     // Should show error message
     await waitFor(() => {
       expect(screen.getByText(/invalid data provided/i)).toBeInTheDocument();
+    });
+  });
+
+  test('user can view and update extended profile information', async () => {
+    await customRender(<App />, { authenticated: true });
+
+    // Click account menu
+    const accountButton = screen.getByLabelText(/account of current user/i);
+    await user.click(accountButton);
+
+    // Click profile in menu 
+    const profileMenuItem = screen.getByRole('menuitem', { name: /profile/i });
+    await user.click(profileMenuItem);
+    const extendedProfileTab = screen.getByRole('tab', { name: /academic information/i });
+    await user.click(extendedProfileTab);
+
+    // Verify extended profile data is displayed
+    expect(screen.getByDisplayValue('Test University')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Computer Science')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('3.8')).toBeInTheDocument();
+
+    // Update extended profile
+    mockedAxios.put.mockResolvedValueOnce({
+      data: {
+        message: 'Profile updated successfully',
+        completion_percentage: 90
+      }
+    });
+
+    const schoolInput = screen.getByLabelText(/current school/i);
+    const majorInput = screen.getByLabelText(/major/i);
+    const gpaInput = screen.getByLabelText(/gpa/i);
+    const updateButton = screen.getByRole('button', { name: /update academic information/i });
+
+    await user.clear(schoolInput);
+    await user.type(schoolInput, 'New University');
+    await user.clear(majorInput);
+    await user.type(majorInput, 'Data Science');
+    await user.clear(gpaInput);
+    await user.type(gpaInput, '4.0');
+
+    await user.click(updateButton);
+
+    // Verify update was called with correct data
+    await waitFor(() => {
+      expect(mockedAxios.put).toHaveBeenCalledWith('/api/profile/extended', {
+        current_school: 'New University',
+        major: 'Data Science',
+        gpa: '4.0'
+      });
+    });
+  });
+
+  test('user can upload profile documents', async () => {
+    render(<App />);
+
+    // Navigate to documents section
+    const profileLink = screen.getByRole('link', { name: /profile/i });
+    await user.click(profileLink);
+    const documentsTab = screen.getByRole('tab', { name: /documents/i });
+    await user.click(documentsTab);
+
+    // Mock file upload response
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        message: 'Document uploaded successfully',
+        url: '/uploads/documents/test_transcript.pdf'
+      }
+    });
+
+    // Upload transcript
+    const file = new File(['test pdf content'], 'test_transcript.pdf', { type: 'application/pdf' });
+    const fileInput = screen.getByLabelText(/upload transcript/i);
+    await user.upload(fileInput, file);
+
+    // Verify upload was called correctly
+    await waitFor(() => {
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        '/api/profile/upload/transcript',
+        expect.any(FormData),
+        expect.any(Object)
+      );
+    });
+  });
+
+  test('displays profile completion percentage', async () => {
+    render(<App />);
+
+    // Navigate to profile through the account menu
+    const accountButton = screen.getByLabelText(/account of current user/i);
+    await user.click(accountButton);
+    const profileMenuItem = screen.getByRole('menuitem', { name: /profile/i });
+    await user.click(profileMenuItem);
+
+    // Verify completion percentage is displayed
+    await waitFor(() => {
+      const completionText = screen.getByText(/85%/);
+      expect(completionText).toBeInTheDocument();
+    });
+  });
+
+  test('handles invalid document upload', async () => {
+    render(<App />);
+
+    // Navigate to documents section through the account menu
+    const accountButton = screen.getByLabelText(/account of current user/i);
+    await user.click(accountButton);
+    const profileMenuItem = screen.getByRole('menuitem', { name: /profile/i });
+    await user.click(profileMenuItem);
+    const documentsTab = screen.getByRole('tab', { name: /documents/i });
+    await user.click(documentsTab);
+
+    // Mock error response
+    mockedAxios.post.mockRejectedValueOnce({
+      response: {
+        data: {
+          error: 'Invalid file type. Allowed types: pdf, doc, docx'
+        }
+      }
+    });
+
+    // Try to upload invalid file
+    const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
+    const fileInput = screen.getByLabelText(/upload transcript/i);
+    await user.upload(fileInput, file);
+
+    // Verify error message is displayed
+    await waitFor(() => {
+      const errorMessage = screen.getByText(/Invalid file type/i);
+      expect(errorMessage).toBeInTheDocument();
     });
   });
 });

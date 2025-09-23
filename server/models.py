@@ -48,6 +48,27 @@ class User(UserMixin, db.Model):
         self.email_verification_expires = datetime.utcnow() + timedelta(hours=24)  # 24 hours for email verification
         return self.email_verification_token
 
+    def verify_email_token(self, token):
+        if self.email_verification_token == token and self.email_verification_expires > datetime.utcnow():
+            self.email_verified = True
+            self.email_verification_token = None
+            self.email_verification_expires = None
+            return True
+        return False
+
+    def __repr__(self):
+        return f'<User {self.email}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': self.role,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'email_verified': self.email_verified
+        }
+
 
 class UserProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,6 +159,10 @@ class Scholarship(db.Model):
             'application_count': self.application_count,
             'creator_name': self.creator.name if self.creator else None
         }
+    
+    def __repr__(self):
+        return f'<Scholarship {self.title}>'
+
 
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)

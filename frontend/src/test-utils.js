@@ -1,5 +1,40 @@
-import React from 'react';
+import React, { createContext } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+
+// Create AuthContext for testing
+export const AuthContext = createContext({
+  user: null,
+  login: () => {},
+  logout: () => {},
+  isAuthenticated: false,
+  loading: false
+});
+// Mock MUI components
+jest.mock('@mui/x-date-pickers/DatePicker', () => ({
+  DatePicker: ({ value, onChange, label }) => (
+    <input
+      type="date"
+      value={value ? value.toISOString().split('T')[0] : ''}
+      onChange={(e) => onChange(new Date(e.target.value))}
+      aria-label={label}
+      data-testid="date-picker"
+    />
+  )
+}));
+
+jest.mock('@mui/x-date-pickers/LocalizationProvider', () => ({
+  LocalizationProvider: ({ children }) => <>{children}</>
+}));
+
+jest.mock('@mui/x-date-pickers/AdapterDateFns', () => ({
+  AdapterDateFns: class {}
+}));
+
+jest.mock('@mui/icons-material/AccountCircle', () => ({
+  __esModule: true,
+  default: () => <svg data-testid="AccountCircleIcon" aria-label="account of current user" />
+}));
+
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -8,7 +43,7 @@ import { AuthProvider } from './context/AuthContext';
 // Mock axios
 import axios from 'axios';
 jest.mock('axios');
-const mockedAxios = axios;
+export const mockedAxios = axios;
 
 // Test theme
 const theme = createTheme({
@@ -35,8 +70,35 @@ const AllTheProviders = ({ children }) => {
   );
 };
 
-const customRender = (ui, options) =>
-  render(ui, { wrapper: AllTheProviders, ...options });
+// Helper to set up authentication
+const setupAuth = async (mockUser = {
+  id: 1,
+  name: 'Test User',
+  email: 'test@example.com',
+  role: 'student'
+}) => {
+  localStorage.setItem('token', 'mock-jwt-token');
+  localStorage.setItem('user', JSON.stringify(mockUser));
+  
+  mockedAxios.get.mockImplementation((url) => {
+    if (url === '/api/auth/check') {
+      return Promise.resolve({ data: mockUser });
+    }
+    return Promise.resolve({ data: {} });
+  });
+};
+
+const customRender = async (ui, options = {}) => {
+  const rendered = render(ui, { wrapper: AllTheProviders, ...options });
+  if (options.authenticated) {
+    await setupAuth(options.mockUser);
+    // Wait for auth to be initialized
+    await waitFor(() => {
+      expect(screen.getByLabelText(/account of current user/i)).toBeInTheDocument();
+    });
+  }
+  return rendered;
+};
 
 // Mock localStorage
 const localStorageMock = {
@@ -48,6 +110,34 @@ const localStorageMock = {
 global.localStorage = localStorageMock;
 
 // Mock window.matchMedia
+window.matchMedia = window.matchMedia || function() {
+  return {
+    matches: false,
+    addListener: function() {},
+    removeListener: function() {}
+  };
+};
+
+// Mock MUI Date Picker components
+jest.mock('@mui/x-date-pickers/DatePicker', () => ({
+  DatePicker: ({ value, onChange, label }) => (
+    <input
+      type="date"
+      value={value ? value.toISOString().split('T')[0] : ''}
+      onChange={(e) => onChange(new Date(e.target.value))}
+      aria-label={label}
+      data-testid="date-picker"
+    />
+  )
+}));
+
+jest.mock('@mui/x-date-pickers/LocalizationProvider', () => ({
+  LocalizationProvider: ({ children }) => <>{children}</>
+}));
+
+jest.mock('@mui/x-date-pickers/AdapterDateFns', () => ({
+  AdapterDateFns: class {}
+}));
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
@@ -62,6 +152,9 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// Export everything
+// re-export everything
 export * from '@testing-library/react';
-export { customRender as render, userEvent, mockedAxios, localStorageMock };
+export { default as userEvent } from '@testing-library/user-event';
+export { screen, waitFor };
+export { mockedAxios, AuthContext };
+export default customRender;

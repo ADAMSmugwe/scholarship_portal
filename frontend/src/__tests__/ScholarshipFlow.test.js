@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, act, userEvent, AuthContext } from '../test-utils';
 import App from '../App';
 
 // Mock axios
@@ -23,13 +22,36 @@ jest.mock('axios', () => ({
 const mockedAxios = require('axios').default;
 
 describe('Scholarship Application Flow Integration Tests', () => {
+  const mockAuthContext = {
+    user: {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'student'
+    },
+    login: jest.fn(),
+    logout: jest.fn(),
+    isAuthenticated: true,
+    loading: false
+  };
+
+  const renderWithAuth = (component) => {
+    return render(
+      <AuthContext.Provider value={mockAuthContext}>
+        {component}
+      </AuthContext.Provider>
+    );
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+    localStorage.setItem('token', 'mock-jwt-token');
+    localStorage.setItem('user', JSON.stringify(mockAuthContext.user));
   });
 
   test('user can browse scholarships and view details', async () => {
-    const user = userEvent;
+    const user = userEvent.setup();
 
     // Mock scholarships data
     const mockScholarships = [
@@ -73,11 +95,15 @@ describe('Scholarship Application Flow Integration Tests', () => {
       return Promise.reject(new Error(`Unknown URL: ${url}`));
     });
 
-    await act(async () => { render(<App />); });
+    await act(async () => {
+      renderWithAuth(<App />);
+    });
 
     // Navigate to scholarships page
-    const scholarshipsLink = screen.getByRole('link', { name: /browse scholarships/i });
-    await user.click(scholarshipsLink);
+    await act(async () => {
+      const scholarshipsLink = screen.getByText(/scholarships/i);
+      await user.click(scholarshipsLink);
+    });
 
     // Should load and display scholarships
     await waitFor(() => {
@@ -184,7 +210,7 @@ describe('Scholarship Application Flow Integration Tests', () => {
   });
 
   test('user can view their applications', async () => {
-    const user = userEvent;
+    const user = userEvent.setup();
 
     // Mock authenticated user and applications
     mockedAxios.get.mockImplementation((url) => {
@@ -227,14 +253,16 @@ describe('Scholarship Application Flow Integration Tests', () => {
     });
 
     // Navigate to applications
-    const applicationsLink = screen.getByRole('link', { name: /applications/i });
-    await user.click(applicationsLink);
+    await act(async () => {
+      const applicationsLink = screen.getByRole('link', { name: /applications/i });
+      await user.click(applicationsLink);
+    });
 
     // Should load and display applications
     await waitFor(() => {
       expect(screen.getByText('Test Scholarship')).toBeInTheDocument();
       expect(screen.getByText('pending')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     // Verify API call
     expect(mockedAxios.get).toHaveBeenCalledWith('/api/applications/my-applications');

@@ -1,14 +1,18 @@
 from flask import Flask, request, make_response, redirect, url_for, jsonify
 import os
 from sqlalchemy import text
-from extensions import db, login_manager, bcrypt, cors, jwt, mail, migrate
+from extensions import db, login_manager, bcrypt, cors, jwt, mail, migrate, cache
 from config import Config, DevelopmentConfig
-from models import User
+from models import User, UserProfile, Scholarship, Application
+from flask_migrate import Migrate
 
 def create_app(config_class=DevelopmentConfig):
     # Initialize Flask app
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Set cache config
+    app.config['CACHE_TYPE'] = 'simple'
 
     # Initialize extensions
     db.init_app(app)
@@ -18,6 +22,19 @@ def create_app(config_class=DevelopmentConfig):
     jwt.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
+    cache.init_app(app)
+    
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        return jsonify({'error': 'Invalid token'}), 401
+
+    @jwt.unauthorized_loader
+    def missing_token_callback(error):
+        return jsonify({'error': 'No token provided'}), 401
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        return jsonify({'error': 'Token has expired'}), 401
 
     # Register blueprints
     from routes.auth import auth_bp
