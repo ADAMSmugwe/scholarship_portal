@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
   // Configure axios defaults
   const isProduction = process.env.NODE_ENV === 'production';
   const protocol = isProduction ? 'https' : 'http';
-  axios.defaults.baseURL = `${protocol}://127.0.0.1:5002`;
+  axios.defaults.baseURL = `${protocol}://127.0.0.1:5001`;
   if (token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
@@ -67,18 +67,18 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await axios.post('/api/auth/login', { email, password });
-      const { access_token } = response.data;
+      const { access_token, user } = response.data;
 
       localStorage.setItem('token', access_token);
       setToken(access_token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
-      // Get user profile
-      const userResponse = await axios.get('/api/profile/');
-      setUser(userResponse.data);
+      // Set user data directly from login response
+      setUser(user);
 
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error.response?.data);
       return {
         success: false,
         error: error.response?.data?.error || 'Login failed'
@@ -88,18 +88,9 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password, role = 'student') => {
     try {
-      // Create a dedicated axios instance for registration
-      const instance = axios.create({
-        baseURL: process.env.NODE_ENV === 'production' ? 'https://api.yourserver.com' : 'http://localhost:5003',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-
       console.log('Attempting registration with:', { name, email, role });
       
-      const response = await instance.post('/api/auth/register', { 
+      const response = await axios.post('/api/auth/register', { 
         name, 
         email, 
         password, 

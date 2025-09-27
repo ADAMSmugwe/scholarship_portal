@@ -13,10 +13,10 @@ server_dir = Path(__file__).parent
 sys.path.insert(0, str(server_dir))
 
 from app import create_app
-from config import ProductionConfig
+from config import DevelopmentConfig
 
-# Create app with production config
-app = create_app(ProductionConfig)
+# Create app with development config for now
+app = create_app(DevelopmentConfig)
 
 # SSL context for HTTPS (if certificates are available)
 ssl_context = None

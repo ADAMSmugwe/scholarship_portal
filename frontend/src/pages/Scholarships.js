@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container,
@@ -21,11 +21,11 @@ import {
   MenuItem
 } from '@mui/material';
 import { Search, FilterList, Add } from '@mui/icons-material';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Scholarships = () => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

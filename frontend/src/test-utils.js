@@ -43,7 +43,7 @@ import { AuthProvider } from './context/AuthContext';
 // Mock axios
 import axios from 'axios';
 jest.mock('axios');
-export const mockedAxios = axios;
+const mockedAxios = axios;
 
 // Test theme
 const theme = createTheme({
@@ -152,9 +152,9 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// re-export everything
+// Export everything
 export * from '@testing-library/react';
 export { default as userEvent } from '@testing-library/user-event';
-export { screen, waitFor };
-export { mockedAxios, AuthContext };
+export { screen, waitFor, mockedAxios, AuthContext };
+export { customRender as render };
 export default customRender;

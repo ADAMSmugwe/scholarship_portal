@@ -1,7 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '../test-utils';
-import userEvent from '@testing-library/user-event';
-import { mockedAxios } from '../test-utils';
+import { render, screen, waitFor, userEvent, mockedAxios } from '../test-utils';
 import App from '../App';
 
 const user = userEvent.setup();
@@ -77,7 +75,9 @@ describe('Profile Management and Admin Functions Integration Tests', () => {
 
   test('user can view and update their profile', async () => {
     // Set up auth token in axios defaults
-    mockedAxios.defaults.headers.common['Authorization'] = 'Bearer mock-jwt-token';
+    await act(async () => {
+      mockedAxios.defaults.headers.common['Authorization'] = 'Bearer mock-jwt-token';
+    });
 
     // Mock authenticated user
     mockedAxios.get.mockImplementation((url) => {

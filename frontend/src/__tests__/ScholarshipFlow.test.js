@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, act, userEvent, AuthContext } from '../test-utils';
+import { render, screen, waitFor, userEvent, AuthContext } from '../test-utils';
 import App from '../App';
 
 // Mock axios
@@ -187,9 +187,11 @@ describe('Scholarship Application Flow Integration Tests', () => {
     await user.click(scholarshipsLink);
 
     // Click on scholarship
-    await waitFor(() => {
+    await waitFor(async () => {
       const scholarshipCard = screen.getByText('Test Scholarship');
-      user.click(scholarshipCard);
+      await act(async () => {
+        await user.click(scholarshipCard);
+      });
     });
 
     // Should be on scholarship detail page
@@ -269,7 +271,7 @@ describe('Scholarship Application Flow Integration Tests', () => {
   });
 
   test('admin can view all applications in dashboard', async () => {
-    const user = userEvent;
+    const user = userEvent.setup();
 
     // Mock admin user and applications
     mockedAxios.get.mockImplementation((url) => {

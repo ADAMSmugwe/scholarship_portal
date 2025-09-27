@@ -5,6 +5,7 @@ from extensions import db, login_manager, bcrypt, cors, jwt, mail, migrate, cach
 from config import Config, DevelopmentConfig
 from models import User, UserProfile, Scholarship, Application
 from flask_migrate import Migrate
+from routes.documents import documents
 
 def create_app(config_class=DevelopmentConfig):
     # Initialize Flask app
@@ -18,7 +19,17 @@ def create_app(config_class=DevelopmentConfig):
     db.init_app(app)
     login_manager.init_app(app)
     bcrypt.init_app(app)
-    cors.init_app(app)
+    
+    # Configure CORS
+    cors.init_app(app, resources={
+        r"/*": {
+            "origins": ["http://localhost:3000"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
+    
     jwt.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
@@ -50,6 +61,10 @@ def create_app(config_class=DevelopmentConfig):
     app.register_blueprint(applications_bp, url_prefix='/api/applications')
     app.register_blueprint(search_bp, url_prefix='/api/search')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(documents, url_prefix='/api/documents')
+
+    # Ensure upload directory exists
+    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
 
     @app.before_request
     def handle_preflight():

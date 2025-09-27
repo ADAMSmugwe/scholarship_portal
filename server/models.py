@@ -164,6 +164,34 @@ class Scholarship(db.Model):
         return f'<Scholarship {self.title}>'
 
 
+class Document(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    file_type = db.Column(db.String(50), nullable=False)  # e.g., 'transcript', 'resume', 'recommendation'
+    mime_type = db.Column(db.String(100), nullable=False)  # e.g., 'application/pdf'
+    size = db.Column(db.Integer, nullable=False)  # file size in bytes
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    is_verified = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    user = db.relationship('User', backref='documents')
+    
+    def __repr__(self):
+        return f'<Document {self.filename}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'file_type': self.file_type,
+            'mime_type': self.mime_type,
+            'size': self.size,
+            'uploaded_at': self.uploaded_at.isoformat(),
+            'is_verified': self.is_verified
+        }
+
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)

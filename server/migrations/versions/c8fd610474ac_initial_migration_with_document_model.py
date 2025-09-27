@@ -1,8 +1,8 @@
-"""Initial migration
+"""initial migration with Document model
 
-Revision ID: 8df1c7bb274a
+Revision ID: c8fd610474ac
 Revises: 
-Create Date: 2025-09-22 17:56:53.870069
+Create Date: 2025-09-26 14:29:31.425805
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '8df1c7bb274a'
+revision = 'c8fd610474ac'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -41,6 +41,23 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_user_password_reset_expires'), ['password_reset_expires'], unique=False)
         batch_op.create_index(batch_op.f('ix_user_password_reset_token'), ['password_reset_token'], unique=True)
         batch_op.create_index(batch_op.f('ix_user_role'), ['role'], unique=False)
+
+    op.create_table('document',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('filename', sa.String(length=255), nullable=False),
+    sa.Column('file_path', sa.String(length=500), nullable=False),
+    sa.Column('file_type', sa.String(length=50), nullable=False),
+    sa.Column('mime_type', sa.String(length=100), nullable=False),
+    sa.Column('size', sa.Integer(), nullable=False),
+    sa.Column('uploaded_at', sa.DateTime(), nullable=True),
+    sa.Column('is_verified', sa.Boolean(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('document', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_document_uploaded_at'), ['uploaded_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_document_user_id'), ['user_id'], unique=False)
 
     op.create_table('scholarship',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -136,6 +153,11 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_scholarship_amount'))
 
     op.drop_table('scholarship')
+    with op.batch_alter_table('document', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_document_user_id'))
+        batch_op.drop_index(batch_op.f('ix_document_uploaded_at'))
+
+    op.drop_table('document')
     with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_user_role'))
         batch_op.drop_index(batch_op.f('ix_user_password_reset_token'))
