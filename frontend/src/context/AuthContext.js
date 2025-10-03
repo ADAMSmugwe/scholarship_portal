@@ -19,7 +19,8 @@ export const AuthProvider = ({ children }) => {
   // Configure axios defaults
   const isProduction = process.env.NODE_ENV === 'production';
   const protocol = isProduction ? 'https' : 'http';
-  axios.defaults.baseURL = `${protocol}://127.0.0.1:5001`;
+  axios.defaults.baseURL = `${protocol}://127.0.0.1:5003`;
+  axios.defaults.headers.common['Content-Type'] = 'application/json';
   if (token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }

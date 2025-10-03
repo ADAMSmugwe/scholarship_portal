@@ -11,62 +11,53 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
+// Create a singleton axios instance for email verification
+const verificationApi = axios.create({
+  baseURL: 'http://localhost:5003',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+});
+
 const EmailVerification = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
+  const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
+  const [hasAttempted, setHasAttempted] = useState(false);
 
   useEffect(() => {
     const verifyEmail = async () => {
-      try {
-        if (!token) {
-          setStatus('error');
-          setMessage('No verification token provided');
-          return;
-        }
+      if (!token || hasAttempted) {
+        return;
+      }
 
-        console.log('Attempting to verify token:', token);
-        
-        // Configure axios for this request
-        const instance = axios.create({
-          baseURL: 'http://localhost:5003',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-        
-        const response = await instance.get(`/api/auth/verify-email/${token}`);
-        console.log('Verification response:', response);
-        
-        setStatus('success');
-        setMessage(response.data.message);
+      try {
+        setHasAttempted(true);
+        const response = await verificationApi.get(`/api/auth/verify-email/${token}`);
+
+        if (response.data.message) {
+          setStatus('success');
+          setMessage(response.data.message);
+        } else {
+          throw new Error('Invalid server response');
+        }
       } catch (error) {
-        console.error('Verification error details:', {
-          error: error,
-          response: error.response,
-          data: error.response?.data,
-          status: error.response?.status
-        });
-        
         setStatus('error');
         if (error.response?.data?.error) {
           setMessage(error.response.data.error);
-        } else if (error.response?.status === 400) {
-          setMessage('Invalid or expired verification token');
-        } else if (error.response?.status === 404) {
-          setMessage('Verification endpoint not found');
         } else if (error.message === 'Network Error') {
-          setMessage('Cannot connect to server. Please try again later.');
+          setMessage('Unable to connect to the server. Please try again later.');
         } else {
-          setMessage('An unexpected error occurred during verification');
+          setMessage('An error occurred during email verification.');
         }
+        console.error('Verification error:', error);
       }
     };
 
     verifyEmail();
-  }, [token]);
+  }, [token, hasAttempted]);
 
   const handleContinue = () => {
     navigate('/login');
@@ -74,21 +65,14 @@ const EmailVerification = () => {
 
   return (
     <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%', textAlign: 'center' }}>
+      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Paper elevation={3} sx={{ p: 4, width: '100%', textAlign: 'center' }}>
           <Typography component="h1" variant="h4" gutterBottom>
             Email Verification
           </Typography>
 
           {status === 'verifying' && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2 }}>
+            <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <CircularProgress />
               <Typography sx={{ mt: 2 }}>
                 Verifying your email address...
@@ -97,34 +81,35 @@ const EmailVerification = () => {
           )}
 
           {status === 'success' && (
-            <>
-              <Alert severity="success" sx={{ mb: 2 }}>
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="success" sx={{ mb: 3 }}>
                 {message}
               </Alert>
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handleContinue}
-                sx={{ mt: 2 }}
+                fullWidth
               >
                 Continue to Login
               </Button>
-            </>
+            </Box>
           )}
 
           {status === 'error' && (
-            <>
-              <Alert severity="error" sx={{ mb: 2 }}>
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="error" sx={{ mb: 3 }}>
                 {message}
               </Alert>
               <Button
-                variant="outlined"
+                variant="contained"
+                color="primary"
                 onClick={handleContinue}
-                sx={{ mt: 2 }}
+                fullWidth
               >
-                Back to Login
+                Go to Login
               </Button>
-            </>
+            </Box>
           )}
         </Paper>
       </Box>
