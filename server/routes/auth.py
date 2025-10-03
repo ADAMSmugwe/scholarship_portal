@@ -9,7 +9,6 @@ import secrets
 
 auth_bp = Blueprint('auth', __name__)
 
-# Add OPTIONS request handling for all routes
 @auth_bp.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
@@ -37,12 +36,10 @@ def register():
     user.set_password(data['password'])
     
     try:
-        # Generate email verification token
         verification_token = user.generate_verification_token()
         db.session.add(user)
         db.session.commit()
 
-        # Send verification email
         verification_url = f"http://localhost:3000/verify-email/{verification_token}"
         
         msg = Message(
@@ -51,7 +48,7 @@ def register():
             recipients=[user.email]
         )
         
-        html_content = '\n'.join([
+        html_content = [
             '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">',
             '    <h2 style="color: #2c3e50;">Welcome to the Scholarship Portal!</h2>',
             f'    <p>Hello {user.name},</p>',
@@ -63,9 +60,9 @@ def register():
             f'    <p style="background-color: #f8f9fa; padding: 10px; word-break: break-all;">{verification_url}</p>',
             '    <p><small>This link will expire in 24 hours.</small></p>',
             '</div>'
-        ])
+        ]
         
-        msg.html = html_content
+        msg.html = '\n'.join(html_content)
         
         mail.send(msg)
         current_app.logger.info(f"Verification email sent to {user.email}")
@@ -85,47 +82,6 @@ def register():
         db.session.rollback()
         current_app.logger.error(f"Failed to register user or send email: {str(e)}")
         return jsonify({'error': 'Registration failed. Please try again.'}), 500
-        <p><small>This link will expire in 24 hours.</small></p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #7f8c8d; font-size: 12px;">If you did not create this account, please ignore this email.</p>
-    </div>
-    '''
-    
-    # Plain text version as fallback
-    text_body = f'''Welcome to the Scholarship Portal, {user.name}!
-
-Please verify your email address by clicking the link below:
-{verification_url}
-
-This link will expire in 24 hours.
-
-If you did not create this account, please ignore this email.
-'''
-    
-    msg = Message(
-        'Welcome to Scholarship Portal - Verify Your Email',
-        sender=('Scholarship Portal', current_app.config['MAIL_USERNAME']),
-        recipients=[user.email]
-    )
-    msg.body = text_body
-    msg.html = html_body
-    try:
-        mail.send(msg)
-        return jsonify({'message': 'User registered successfully. Please check your email to verify your account.'}), 201
-    except Exception as e:
-        print(f"Email sending failed: {e}")
-        # In development, log the verification link to console
-        if current_app.config.get('DEBUG', False):
-            print(f"\n{'='*60}")
-            print(f"📧 DEVELOPMENT MODE - EMAIL VERIFICATION LINK:")
-            print(f"🔗 http://localhost:3000/verify-email/{verification_token}")
-            print(f"{'='*60}\n")
-            return jsonify({
-                'message': 'User registered successfully. Check the console for the verification link.',
-                'verification_link': f"http://localhost:3000/verify-email/{verification_token}"
-            }), 201
-        else:
-            return jsonify({'message': 'User registered successfully, but verification email could not be sent. Please contact support.'}), 201
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -135,14 +91,11 @@ def login():
 
     user = db.session.query(User).filter_by(email=data['email']).first()
     if user and user.check_password(data['password']):
-        # In development, allow login without email verification
         if not user.email_verified and not current_app.config.get('DEBUG', False):
             return jsonify({'error': 'Please verify your email address before logging in'}), 403
         
-        # Create JWT token
         access_token = create_access_token(identity=str(user.id))
         
-        # Include user info in response
         return jsonify({
             'access_token': access_token,
             'message': 'Logged in successfully',
@@ -159,30 +112,51 @@ def login():
 
 @auth_bp.route('/verify-email/<token>', methods=['GET'])
 def verify_email(token):
-    """Verify user's email address"""
-    user = User.query.filter_by(email_verification_token=token).first()
-    
-    if not user:
-        return jsonify({'error': 'Invalid verification token'}), 400
+    if not token:
+        return jsonify({'error': 'No verification token provided'}), 400
         
-    if user.email_verification_expires and user.email_verification_expires < datetime.utcnow():
-        return jsonify({'error': 'Verification token has expired'}), 400
-    
-    # Mark email as verified
-    user.email_verified = True
-    user.email_verification_token = None
-    user.email_verification_expires = None
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Email verified successfully',
-        'email': user.email
-    }), 200
+    try:
+        # First check if any user was verified with this token
+        verified_user = User.query.filter_by(
+            email_verified=True, 
+            email_verification_token=None
+        ).first()
+        
+        if verified_user:
+            return jsonify({
+                'message': 'Email is already verified',
+                'email': verified_user.email
+            }), 200
+            
+        # Then look for pending verification
+        user = User.query.filter_by(email_verification_token=token).first()
+        
+        if not user:
+            return jsonify({'error': 'Invalid verification token. Please request a new verification email.'}), 400
+            
+        if user.email_verified:
+            return jsonify({'message': 'Email is already verified', 'email': user.email}), 200
+            
+        if user.email_verification_expires and user.email_verification_expires < datetime.utcnow():
+            return jsonify({'error': 'Verification token has expired. Please request a new verification email.'}), 400
+        
+        user.email_verified = True
+        user.email_verification_token = None
+        user.email_verification_expires = None
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Email verified successfully',
+            'email': user.email
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Email verification error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'An error occurred during verification. Please try again.'}), 400
 
 @auth_bp.route('/resend-verification', methods=['POST'])
 def resend_verification():
-    """Resend verification email"""
     data = request.get_json()
     if not data or not data.get('email'):
         return jsonify({'error': 'Email is required'}), 400
@@ -194,7 +168,6 @@ def resend_verification():
     if user.email_verified:
         return jsonify({'message': 'Email is already verified'}), 200
         
-    # Generate new verification token
     verification_token = user.generate_verification_token()
     verification_url = f"http://localhost:3000/verify-email/{verification_token}"
     
@@ -204,7 +177,7 @@ def resend_verification():
         recipients=[user.email]
     )
     
-    html_content = '\n'.join([
+    html_content = [
         '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">',
         '    <h2 style="color: #2c3e50;">Verify Your Email</h2>',
         f'    <p>Hello {user.name},</p>',
@@ -216,9 +189,9 @@ def resend_verification():
         f'    <p style="background-color: #f8f9fa; padding: 10px; word-break: break-all;">{verification_url}</p>',
         '    <p><small>This link will expire in 24 hours.</small></p>',
         '</div>'
-    ])
+    ]
     
-    msg.html = html_content
+    msg.html = '\n'.join(html_content)
     
     try:
         mail.send(msg)
@@ -229,8 +202,6 @@ def resend_verification():
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
-    # For JWT, logout is handled client-side by removing the token
-    # No server-side session to destroy
     return jsonify({'message': 'Logged out successfully'})
 
 @auth_bp.route('/forgot-password', methods=['POST'])
@@ -241,24 +212,24 @@ def forgot_password():
 
     user = db.session.query(User).filter_by(email=data['email']).first()
     if not user:
-        # Don't reveal if email exists or not for security
+        return jsonify({'message': 'If the email exists, a reset link has been sent'}), 200
+        
+    if not user.email_verified:
         return jsonify({'message': 'If the email exists, a reset link has been sent'}), 200
 
     try:
-        # Generate reset token
         token = user.generate_reset_token()
         db.session.commit()
 
         reset_url = f"http://localhost:3000/reset-password/{token}"
         
-        # Send reset email with HTML template
         msg = Message(
             'Password Reset Request - Scholarship Portal',
             sender=('Scholarship Portal', current_app.config['MAIL_USERNAME']),
             recipients=[user.email]
         )
         
-        html_content = '\n'.join([
+        html_content = [
             '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">',
             '    <h2 style="color: #2c3e50;">Password Reset Request</h2>',
             f'    <p>Hello {user.name},</p>',
@@ -270,9 +241,9 @@ def forgot_password():
             f'    <p style="background-color: #f8f9fa; padding: 10px; word-break: break-all;">{reset_url}</p>',
             '    <p><small>This link will expire in 24 hours. If you did not request this reset, please ignore this email.</small></p>',
             '</div>'
-        ])
+        ]
         
-        msg.html = html_content
+        msg.html = '\n'.join(html_content)
         
         mail.send(msg)
         current_app.logger.info(f"Password reset email sent to {user.email}")
@@ -291,7 +262,6 @@ def forgot_password():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Failed to generate reset token or send email: {str(e)}")
-        # In development mode, provide more detailed error
         if current_app.config.get('DEBUG', False):
             return jsonify({
                 'error': 'Failed to send reset email',
@@ -306,15 +276,12 @@ def reset_password(token):
     if not data or not data.get('password'):
         return jsonify({'error': 'New password is required'}), 400
 
-    # Find user by token
     user = db.session.query(User).filter_by(password_reset_token=token).first()
     if not user or not user.verify_reset_token(token):
         return jsonify({'error': 'Invalid or expired reset token'}), 400
 
-    # Update password and clear reset token
     user.set_password(data['password'])
     user.clear_reset_token()
     db.session.commit()
 
     return jsonify({'message': 'Password has been reset successfully'}), 200
-
